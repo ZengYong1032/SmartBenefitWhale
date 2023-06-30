@@ -86,7 +86,7 @@
 // 根据WebView对于即将跳转的HTTP请求头信息和相关信息来决定是否跳转
 - (void)webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction decisionHandler:(void (^)(WKNavigationActionPolicy))decisionHandler {
     [AppMainWindow dismissHud];
-    NSString *substr = navigationAction.request.URL.absoluteString;
+//    NSString *substr = navigationAction.request.URL.absoluteString;
 //    if ([CAFNOCacheTool filtrateDesignatedInfo:substr]) {
 //        [kApplicationManager openURL:[NSURL URLWithString:substr] options:@{} completionHandler:^(BOOL success) {
 //            ;

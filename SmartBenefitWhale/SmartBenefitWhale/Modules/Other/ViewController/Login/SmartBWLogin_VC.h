@@ -12,8 +12,8 @@ NS_ASSUME_NONNULL_BEGIN
 typedef NS_ENUM(NSInteger,SmartBWLoginContentType) {
     SmartBWLoginContentTypeDefault = 0,
     SmartBWLoginContentTypeLoginByPassword,
-    SmartBWLoginContentTypeRegisterByCode,
     SmartBWLoginContentTypeLoginByCode,
+    SmartBWLoginContentTypeRegisterByCode,
     SmartBWLoginContentTypePasswordForgot,
     SmartBWLoginContentTypePasswordEdit
 };

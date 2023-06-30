@@ -67,6 +67,8 @@
     self.view.backgroundColor = kWhiteColor;
     
     [self setupViews];
+    
+//    [self.navigationController pushViewController:[SmartBWLogin_VC new] animated:YES];
 }
 
 #pragma mark ------------------------------------------------ UITableView Data Source & Delegate Method  ------------------------------------------------

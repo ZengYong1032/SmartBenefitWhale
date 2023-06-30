@@ -171,18 +171,18 @@
 - (void)optionButtonResponse:(UIButton *)sender {
     NSInteger index = sender.tag - 2023022500;
     if(index != self.enterType) {
-        self.enterType = index;
+        self.enterType = (index + 1);
         BOOL isPwd = (self.enterType == SmartBWLoginContentTypeLoginByPassword);
         UIButton *leftButton = [self.optionView viewWithTag:2023022500];
         UIButton *rightButton = [self.optionView viewWithTag:2023022501];
         if(leftButton) {
             leftButton.backgroundColor = isPwd?kRedColor:kClearColor;
-            [leftButton setAttributedTitle:(isPwd?[SmartBWAuxiliaryMeansManager appendImgAtHeadWithImgName:@"login_pwd_mark" imgrect:CGRectMake(0, 0, 20.0, 20.0) string:@"  密码登录" stringAttributes:@{NSForegroundColorAttributeName:kWhiteColor,NSFontAttributeName:SystemFont(14)}]:[[NSAttributedString alloc] initWithString:@"密码登录" attributes:@{NSForegroundColorAttributeName:kBlackColor,NSFontAttributeName:SystemFont(14)}]) forState:UIControlStateNormal];
+            [leftButton setAttributedTitle:(isPwd?[SmartBWAuxiliaryMeansManager appendImgAtHeadWithImgName:@"login_pwd_mark" imgrect:CGRectMake(0, 0, 20.0, 20.0) string:@"  密码登录" stringAttributes:@{NSForegroundColorAttributeName:kWhiteColor,NSFontAttributeName:SystemBoldFont(16)}]:[[NSAttributedString alloc] initWithString:@"密码登录" attributes:@{NSForegroundColorAttributeName:kColorByHexString(@"#666666"),NSFontAttributeName:SystemFont(16)}]) forState:UIControlStateNormal];
         }
         
         if(rightButton) {
             rightButton.backgroundColor = !isPwd?kRedColor:kClearColor;
-            [rightButton setAttributedTitle:(!isPwd?[SmartBWAuxiliaryMeansManager appendImgAtHeadWithImgName:@"login_code_mark" imgrect:CGRectMake(0, 0, 20.0, 20.0) string:@"  验证码登录" stringAttributes:@{NSForegroundColorAttributeName:kWhiteColor,NSFontAttributeName:SystemFont(14)}]:[[NSAttributedString alloc] initWithString:@"验证码登录" attributes:@{NSForegroundColorAttributeName:kBlackColor,NSFontAttributeName:SystemFont(14)}]) forState:UIControlStateNormal];
+            [rightButton setAttributedTitle:(!isPwd?[SmartBWAuxiliaryMeansManager appendImgAtHeadWithImgName:@"login_code_mark" imgrect:CGRectMake(0, 0, 20.0, 20.0) string:@"  验证码登录" stringAttributes:@{NSForegroundColorAttributeName:kWhiteColor,NSFontAttributeName:SystemBoldFont(16)}]:[[NSAttributedString alloc] initWithString:@"验证码登录" attributes:@{NSForegroundColorAttributeName:kBlackColor,NSFontAttributeName:SystemFont(16)}]) forState:UIControlStateNormal];
         }
         
         [self refreshViews];
@@ -312,7 +312,11 @@
         [self checkUserInputInfo];
     }
     else {
-        if(self.enterType == SmartBWLoginContentTypePasswordForgot) {
+        if(self.enterType == SmartBWLoginContentTypeDefault) {
+            self.enterType = SmartBWLoginContentTypeLoginByPassword;
+            [self refreshViews];
+        }
+        else if(self.enterType == SmartBWLoginContentTypePasswordForgot) {
             [self resetLoginPassword];
         }
         else {
@@ -371,6 +375,12 @@
 
 /// 根据输入信息提示引导
 - (void)checkUserInputInfo {
+    if(self.enterType == SmartBWLoginContentTypeDefault) {
+        if(!self.isAgreed) {
+            [AppMainWindow showAutoHudWithText:@"请阅读并同意相关协议"];
+        }
+        return;
+    }
     if(![SmartBWAuxiliaryMeansManager isPhoneNumberWithNumber:self.phoneTF.text]) {
         [AppMainWindow showAutoHudWithText:@"手机号码不正确"];
         [self.phoneTF becomeFirstResponder];
@@ -517,6 +527,13 @@
 
 #pragma mark **************************************************** Refresh Views Method ****************************************************
 - (void)refreshViews {
+    [self.navigationViews removeFromSuperview];
+    [self.logoImageView removeFromSuperview];
+    [self.optionView removeFromSuperview];
+    self.optionView = nil;
+    self.logoImageView = nil;
+    self.navigationViews = nil;
+    
     NSString *titleStr = @"登录";
     switch (self.enterType) {
         case SmartBWLoginContentTypeRegisterByCode:{
@@ -550,19 +567,20 @@
         default:
             break;
     }
-//    self.titleLab.text = titleStr;
-    
     
     [self.infoLab removeFromSuperview];
     self.infoLab = nil;
     [self removeLoginInputViews];
     
-    self.basalScrollView.contentSize = CGSizeMake(0, MAX((kWindowHeight + kStatusBarHeight + 1), self.infoLab.bottom));
+    self.basalScrollView.frame = CGRectMake(0.0, self.navigationViews.bottom, kWindowWidth, kWindowHeight - self.navigationViews.bottom);
+    self.basalScrollView.contentSize = CGSizeMake(0, MAX((kWindowHeight - self.navigationViews.bottom + 1), self.infoLab.bottom));
     
     [self.basalScrollView addSubview:self.loginInputView];
     [self.basalScrollView addSubview:self.infoLab];
     
     [self refreshSureButtonStatus];
+    
+    [self.view addSubview:self.navigationViews];
 }
 
 /// 刷新确认按钮状态
@@ -570,6 +588,11 @@
     BOOL isable = NO;
     BOOL isPhone = [SmartBWAuxiliaryMeansManager isPhoneNumberWithNumber:self.phoneTF.text];
     switch (self.enterType) {
+        case SmartBWLoginContentTypeDefault:{
+            isable = self.isAgreed;
+        }
+            break;
+            
         case SmartBWLoginContentTypeLoginByPassword:{
             isable = self.isAgreed && isPhone && self.passwordTF.text.length >= 6 && self.passwordTF.text.length <= 18;
         }
@@ -619,32 +642,50 @@
 - (UIView *)navigationViews {
     if (!_navigationViews) {
         _navigationViews = [[UIView alloc] initWithFrame:CGRectMake(0, 0.0, kWindowWidth, kNavigationBarHeight)];
-        _navigationViews.backgroundColor = kWhiteColor;
         
+        NSString *backname = @"back_login_mark";
         UIButton *backButton = [[UIButton alloc] initWithFrame:CGRectMake(8.0, kStatusBarHeight, 40.0, kNavigationBarContentHeight)];
-        [backButton setImage:ImageByName(@"mine_back_black") forState:UIControlStateNormal];
+        [backButton setImage:ImageByName(@"back_login_mark") forState:UIControlStateNormal];
         [backButton addTarget:self.navigationController action:@selector(popViewControllerAnimated:) forControlEvents:UIControlEventTouchUpInside];
         
         UILabel *titleLab = [[UILabel alloc] initWithFrame:CGRectMake(60.0, kStatusBarHeight, kWindowWidth - 120.0, kNavigationBarContentHeight)];
         titleLab.adjustsFontSizeToFitWidth = YES;
         titleLab.textAlignment = NSTextAlignmentCenter;
-        titleLab.font = SystemFont(18);
+        titleLab.font = SystemBoldFont(18);
         titleLab.textColor = kBlackColor;
-        titleLab.text = @"";
+        
         
         switch (self.enterType) {
             case SmartBWLoginContentTypeDefault:{
+                self.view.backgroundColor = kWhiteColor;
+                _navigationViews.backgroundColor = kWhiteColor;
+                self.logoImageView.frame = CGRectMake(0.0, 106.0, kWindowWidth, 183.0);
+                self.logoImageView.image = ImageByName(@"login_logo_mark");
                 
             }
                 break;
                 
             case SmartBWLoginContentTypeLoginByPassword:{
+                self.view.backgroundColor = kGrayColorByAlph(235);
+                _navigationViews.backgroundColor = kClearColor;
+                titleLab.text = @"手机号登录";
+                self.logoImageView.frame = CGRectMake(0.0, kNavigationBarHeight + 30.0, kWindowWidth, 44.0);
+                self.logoImageView.image = ImageByName(@"login_logo_mark");
                 
+                [_navigationViews addSubview:backButton];
+                [_navigationViews addSubview:titleLab];
             }
                 break;
                 
             case SmartBWLoginContentTypeLoginByCode:{
+                self.view.backgroundColor = kGrayColorByAlph(235);
+                _navigationViews.backgroundColor = kClearColor;
+                titleLab.text = @"验证码登录";
+                self.logoImageView.frame = CGRectMake(0.0, kNavigationBarHeight + 30.0, kWindowWidth, 44.0);
+                self.logoImageView.image = ImageByName(@"login_logo_mark");
                 
+                [_navigationViews addSubview:backButton];
+                [_navigationViews addSubview:titleLab];
             }
                 break;
                 
@@ -666,6 +707,8 @@
             default:
                 break;
         }
+                
+        [backButton setImage:ImageByName(backname) forState:UIControlStateNormal];
         
         _navigationViews.height = self.logoImageView.bottom;
         [_navigationViews addSubview:self.logoImageView];
@@ -684,7 +727,7 @@
 
 - (UIScrollView *)basalScrollView {
     if (!_basalScrollView) {
-        _basalScrollView = [[UIScrollView alloc] initWithFrame:CGRectMake(0.0, -kStatusBarHeight, kWindowWidth, kWindowHeight + kStatusBarHeight)];
+        _basalScrollView = [[UIScrollView alloc] initWithFrame:CGRectMake(0.0, self.navigationViews.bottom, kWindowWidth, kWindowHeight - self.navigationViews.bottom)];
         _basalScrollView.bounces = YES;
         _basalScrollView.pagingEnabled = NO;
         _basalScrollView.scrollEnabled = YES;
@@ -697,7 +740,7 @@
         _basalScrollView.delegate = self;
         [_basalScrollView setBackgroundColor:kClearColor];
         
-        _basalScrollView.contentSize = CGSizeMake(0, MAX((kWindowHeight + kStatusBarHeight + 1), self.infoLab.bottom));
+        _basalScrollView.contentSize = CGSizeMake(0, MAX((kWindowHeight - self.navigationViews.bottom + 1), self.infoLab.bottom));
         
         UIButton *cancelButton = [[UIButton alloc] initWithFrame:CGRectMake(0, 0, _basalScrollView.width, _basalScrollView.contentSize.height)];
         [cancelButton addTarget:self action:@selector(resignInputResponder) forControlEvents:UIControlEventTouchUpInside];
@@ -717,39 +760,75 @@
 
 - (UIView *)optionView {
     if(!_optionView) {
-        _optionView = [[UIView alloc] initWithFrame:CGRectMake(26.0, IP6SW(194.0), kWindowWidth - 52.0, 50.0)];
-        _optionView.backgroundColor = kWhiteColor;
-        _optionView.layer.cornerRadius = 25.0;
-        _optionView.layer.masksToBounds = YES;
+        _optionView = [[UIView alloc] initWithFrame:CGRectZero];
         
-        BOOL isPwd = (self.enterType == SmartBWLoginContentTypeLoginByPassword);
-        
-        UIButton *pwdButton = [[UIButton alloc] initWithFrame:CGRectMake(3.0, 3.0, _optionView.middleWidth - 3.0, 44.0)];
-        pwdButton.backgroundColor = isPwd?kRedColor:kClearColor;
-        pwdButton.layer.cornerRadius = 22.0;
-        pwdButton.layer.masksToBounds = YES;
-        pwdButton.tag = 2023022500;
-        [pwdButton setAttributedTitle:(isPwd?[SmartBWAuxiliaryMeansManager appendImgAtHeadWithImgName:@"login_pwd_mark" imgrect:CGRectMake(0, -4.0, 20.0, 20.0) string:@"  密码登录" stringAttributes:@{NSForegroundColorAttributeName:kWhiteColor,NSFontAttributeName:SystemFont(14)}]:[[NSAttributedString alloc] initWithString:@"密码登录" attributes:@{NSForegroundColorAttributeName:kBlackColor,NSFontAttributeName:SystemFont(14)}]) forState:UIControlStateNormal];
-        [pwdButton addTarget:self action:@selector(optionButtonResponse:) forControlEvents:UIControlEventTouchUpInside];
+        switch (self.enterType) {
+            case SmartBWLoginContentTypeLoginByPassword:{
+                _optionView.frame = CGRectMake(22.0, 20.0, kWindowWidth - 44.0, 50.0);
+                _optionView.backgroundColor = kWhiteColor;
+                _optionView.layer.cornerRadius = 15.0;
+                _optionView.layer.masksToBounds = YES;
+                
+                UIButton *pwdButton = [[UIButton alloc] initWithFrame:CGRectMake(3.0, 3.0, _optionView.middleWidth - 3.0, 44.0)];
+                pwdButton.backgroundColor = kRedColor;
+                pwdButton.layer.cornerRadius = 22.0;
+                pwdButton.layer.masksToBounds = YES;
+                pwdButton.tag = 2023022500;
+                [pwdButton setAttributedTitle:[SmartBWAuxiliaryMeansManager appendImgAtHeadWithImgName:@"login_pwd_mark" imgrect:CGRectMake(0, -4.0, 20.0, 20.0) string:@"  密码登录" stringAttributes:@{NSForegroundColorAttributeName:kWhiteColor,NSFontAttributeName:SystemBoldFont(14)}] forState:UIControlStateNormal];
+                [pwdButton addTarget:self action:@selector(optionButtonResponse:) forControlEvents:UIControlEventTouchUpInside];
 
-        UIButton *codeButton = [[UIButton alloc] initWithFrame:CGRectMake(pwdButton.right, pwdButton.top, pwdButton.width, pwdButton.height)];
-        codeButton.backgroundColor = isPwd?kClearColor:kRedColor;
-        codeButton.layer.cornerRadius = 22.0;
-        codeButton.layer.masksToBounds = YES;
-        codeButton.tag = 2023022501;
-        [codeButton setAttributedTitle:(!isPwd?[SmartBWAuxiliaryMeansManager appendImgAtHeadWithImgName:@"login_code_mark" imgrect:CGRectMake(0, -4.0, 20.0, 20.0) string:@"  验证码登录" stringAttributes:@{NSForegroundColorAttributeName:kWhiteColor,NSFontAttributeName:SystemFont(14)}]:[[NSAttributedString alloc] initWithString:@"验证码登录" attributes:@{NSForegroundColorAttributeName:kBlackColor,NSFontAttributeName:SystemFont(14)}]) forState:UIControlStateNormal];
-        [codeButton addTarget:self action:@selector(optionButtonResponse:) forControlEvents:UIControlEventTouchUpInside];
-        
-        
-        [_optionView addSubview:pwdButton];
-        [_optionView addSubview:codeButton];
+                UIButton *codeButton = [[UIButton alloc] initWithFrame:CGRectMake(pwdButton.right, pwdButton.top, pwdButton.width, pwdButton.height)];
+                codeButton.backgroundColor = kClearColor;
+                codeButton.layer.cornerRadius = 22.0;
+                codeButton.layer.masksToBounds = YES;
+                codeButton.tag = 2023022501;
+                [codeButton setAttributedTitle:[[NSAttributedString alloc] initWithString:@"验证码登录" attributes:@{NSForegroundColorAttributeName:kColorByHexString(@"#666666"),NSFontAttributeName:SystemFont(14)}] forState:UIControlStateNormal];
+                [codeButton addTarget:self action:@selector(optionButtonResponse:) forControlEvents:UIControlEventTouchUpInside];
+                
+                
+                [_optionView addSubview:pwdButton];
+                [_optionView addSubview:codeButton];
+            }
+                break;
+                
+            case SmartBWLoginContentTypeLoginByCode:{
+                _optionView.frame = CGRectMake(26.0, IP6SW(194.0), kWindowWidth - 52.0, 50.0);
+                _optionView.backgroundColor = kWhiteColor;
+                _optionView.layer.cornerRadius = 25.0;
+                _optionView.layer.masksToBounds = YES;
+                
+                UIButton *pwdButton = [[UIButton alloc] initWithFrame:CGRectMake(3.0, 3.0, _optionView.middleWidth - 3.0, 44.0)];
+                pwdButton.backgroundColor = kClearColor;
+                pwdButton.layer.cornerRadius = 22.0;
+                pwdButton.layer.masksToBounds = YES;
+                pwdButton.tag = 2023022500;
+                [pwdButton setAttributedTitle:[[NSAttributedString alloc] initWithString:@"密码登录" attributes:@{NSForegroundColorAttributeName:kColorByHexString(@"#666666"),NSFontAttributeName:SystemFont(14)}] forState:UIControlStateNormal];
+                [pwdButton addTarget:self action:@selector(optionButtonResponse:) forControlEvents:UIControlEventTouchUpInside];
+
+                UIButton *codeButton = [[UIButton alloc] initWithFrame:CGRectMake(pwdButton.right, pwdButton.top, pwdButton.width, pwdButton.height)];
+                codeButton.backgroundColor = kRedColor;
+                codeButton.layer.cornerRadius = 22.0;
+                codeButton.layer.masksToBounds = YES;
+                codeButton.tag = 2023022501;
+                [codeButton setAttributedTitle:[SmartBWAuxiliaryMeansManager appendImgAtHeadWithImgName:@"login_code_mark" imgrect:CGRectMake(0, -4.0, 20.0, 20.0) string:@"  验证码登录" stringAttributes:@{NSForegroundColorAttributeName:kWhiteColor,NSFontAttributeName:SystemFont(14)}] forState:UIControlStateNormal];
+                [codeButton addTarget:self action:@selector(optionButtonResponse:) forControlEvents:UIControlEventTouchUpInside];
+                
+                
+                [_optionView addSubview:pwdButton];
+                [_optionView addSubview:codeButton];
+            }
+                break;
+                
+            default:
+                break;
+        }
     }
     return _optionView;
 }
 
 - (UIView *)loginInputView {
     if(!_loginInputView) {
-        _loginInputView = [[UIView alloc] initWithFrame:CGRectMake(26.0, self.optionView.bottom + 26.0, kWindowWidth - 52.0, 100.0)];
+        _loginInputView = [[UIView alloc] initWithFrame:CGRectMake(22.0, self.optionView.bottom + 26.0, kWindowWidth - 44.0, 100.0)];
         UIView *whiteView = [[UIView alloc] initWithFrame:CGRectMake(0.0, 0.0, kWindowWidth - 52.0, 10.0)];
         whiteView.backgroundColor = kClearColor;
         whiteView.layer.masksToBounds = YES;
@@ -758,10 +837,11 @@
         NSArray *views = @[];
         switch (self.enterType) {
             case SmartBWLoginContentTypeDefault:{
-                whiteView.height = kWindowHeight - (self.optionView.bottom + 26.0 + DeviceBottomSafeHeight);
-                self.sureButton.top = 60.0;
+                _loginInputView.top = self.optionView.bottom + 26.0;
+                whiteView.height = kWindowHeight - self.navigationViews.bottom - DeviceBottomSafeHeight;
+                self.sureButton.frame = CGRectMake(14.0, 120.0, kWindowWidth - 80.0, 50.0);
                 [self.sureButton setTitle:@"手机号登录" forState:UIControlStateNormal];
-                
+                self.sureButton.layer.cornerRadius = 10.0;
                 CGFloat w = [SmartBWAuxiliaryMeansManager computerStringWidthWithString:@"阅读并同意《用户协议》和《隐私政策》" attribute:@{NSFontAttributeName:SystemFont(13)} maxWidth:(kWindowWidth - 52.0 - 30.0)];
                 NSMutableAttributedString *astr = [[NSMutableAttributedString alloc] initWithString:@"阅读并同意" attributes:@{NSFontAttributeName:SystemFont(13),NSForegroundColorAttributeName:kGrayColorByAlph(153.0)}];
                 [astr appendAttributedString:[[NSAttributedString alloc] initWithString:@"《用户协议》" attributes:@{NSFontAttributeName:SystemFont(13),NSForegroundColorAttributeName:kColorByHexString(@"#ED3D44")}]];
@@ -769,13 +849,13 @@
                 [astr appendAttributedString:[[NSAttributedString alloc] initWithString:@"《隐私政策》" attributes:@{NSFontAttributeName:SystemFont(13),NSForegroundColorAttributeName:kColorByHexString(@"#ED3D44")}]];
                 
                 
-                UIButton *wxButton = [[UIButton alloc] initWithFrame:CGRectMake(kScreen_X(0.5) - 56.0, self.sureButton.bottom + 60.0, 60.0, 80.0)];
+                UIButton *wxButton = [[UIButton alloc] initWithFrame:CGRectMake(kScreen_X(0.5) - 26.0 - 56.0, self.sureButton.bottom + 140.0, 112.0, 90.0)];
                 [wxButton addTarget:self action:@selector(wxButtonCompose) forControlEvents:UIControlEventTouchUpInside];
-                UIImageView *markIV = [[UIImageView alloc] initWithFrame:CGRectMake(0.0, 0.0, 60.0, 58.0)];
+                UIImageView *markIV = [[UIImageView alloc] initWithFrame:CGRectMake(0.0, 0.0, 112.0, 58.0)];
                 markIV.contentMode = UIViewContentModeCenter;
                 markIV.image = ImageByName(@"dlzc_wxdl");
                 
-                UILabel *lab = [[UILabel alloc] initWithFrame:CGRectMake(0.0, 60.0, 60.0, 16.0)];
+                UILabel *lab = [[UILabel alloc] initWithFrame:CGRectMake(0.0, 64.0, 112.0, 22.0)];
                 lab.textColor = kBlackColor;
                 lab.textAlignment = NSTextAlignmentCenter;
                 lab.font = SystemFont(15);
@@ -783,7 +863,7 @@
                 [wxButton addSubview:markIV];
                 [wxButton addSubview:lab];
                 
-                UIButton *agreeButton = [[UIButton alloc] initWithFrame:CGRectMake(whiteView.middleWidth - w*0.5 - 16.0, kWindowHeight - (self.optionView.bottom + 26.0 + DeviceBottomSafeHeight + 34.0), 30.0, 34.0)];
+                UIButton *agreeButton = [[UIButton alloc] initWithFrame:CGRectMake(whiteView.middleWidth - w*0.5 - 16.0, whiteView.height - 50.0, 30.0, 34.0)];
                 [agreeButton setImage:ImageByName(NSStringFormat(@"agree_%d_mark",self.isAgreed*1)) forState:UIControlStateNormal];
                 [agreeButton addTarget:self action:@selector(agreeButtonResponse:) forControlEvents:UIControlEventTouchUpInside];
                 
@@ -801,6 +881,7 @@
                 break;
                 
             case SmartBWLoginContentTypeLoginByPassword:{
+                _loginInputView.top = self.optionView.bottom + 12.0;
                 views = @[@{@"title":@"手机号",@"views":@[self.phoneTF]},@{@"title":@"输入密码",@"views":@[self.passwordTF,self.securityButton]}];
                 whiteView.height = (views.count*74.0 + 140.0);
                 
